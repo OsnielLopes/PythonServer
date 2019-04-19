@@ -1,5 +1,6 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import logging
+import psycopg2
 
 class S(BaseHTTPRequestHandler):
     def _set_response(self):
@@ -10,7 +11,7 @@ class S(BaseHTTPRequestHandler):
     def do_GET(self):
         logging.info("GET request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
         self._set_response()
-        self.wfile.write("GET request for {}".format(self.path).encode('utf-8'))
+        self.wfile.write("oi amorzinho lindo request for {}".format(self.path).encode('utf-8'))
 
     def do_POST(self):
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
@@ -22,10 +23,9 @@ class S(BaseHTTPRequestHandler):
         self.wfile.write("POST request for {}".format(self.path).encode('utf-8'))
 
 def run(server_class=HTTPServer, handler_class=S, port=8080):
-    logging.basicConfig(level=logging.INFO)
     server_address = ('', port)
     httpd = server_class(server_address, handler_class)
-    logging.info('Starting httpd...\n')
+    logging.info('Starting server at localhost:%s...\n', port)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
@@ -34,9 +34,22 @@ def run(server_class=HTTPServer, handler_class=S, port=8080):
     logging.info('Stopping httpd...\n')
 
 if __name__ == '__main__':
-    from sys import argv
 
+    from sys import argv
     if len(argv) == 2:
-        run(port=int(argv[1]))
+        logging.basicConfig(level=argv[1])
     else:
-        run()
+        logging.basicConfig(level=logging.info)
+    
+    try:
+        conn = psycopg2.connect(host='localhost', database='historico', user='osniellopesteixeira', password='1928370a')
+        conn.close()
+        logging.info("Connected to database.")
+    except Exception as err:
+        logging.critical(err)
+
+    run()
+
+    
+
+    
