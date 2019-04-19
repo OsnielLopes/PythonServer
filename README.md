@@ -1,8 +1,10 @@
 # TesouroAPI
 
-1. Instalação do PostgreSQL
-    1.1 Mac -> Via HomeBrew
-    No terminal:
+## Instalação do PostgreSQL
+### Mac -> Via HomeBrew
+   
+   No terminal:
+    
         virtualenv env (dentro da pasta do projeto)
         source env/bin/activate
         brew update
