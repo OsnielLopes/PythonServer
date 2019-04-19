@@ -1,4 +1,4 @@
-# PythonServer
+# TesouroAPI
 
 1. Instalação do PostgreSQL
     1.1 Mac -> Via HomeBrew
