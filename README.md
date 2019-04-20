@@ -1,7 +1,7 @@
 # TesouroAPI
 
 ## Instalação do PostgreSQL
-    ### Mac
+### Mac
     Para a instalação usamos o HomeBrew.
     No terminal:
     ```
@@ -13,6 +13,7 @@
     pip3 install pandas
     pip3 install xlrd
     ```
-        
+
+## Modelo Entidade-Relacionamento do banco de dados
 ![Modelo Entidade Relacionamento usado para criação do banco](https://github.com/OsnielLopes/PythonServer/blob/master/er-diagram.png)
 
