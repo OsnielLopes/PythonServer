@@ -185,7 +185,6 @@ def prepare_database(cur):
         cur.execute("CREATE TABLE category (id serial PRIMARY KEY, title VARCHAR (50) UNIQUE NOT NULL)")
         for data in df.iloc[5, 2:]:
             name = data.split('Tesouro Direto - ')[-1]
-            print(name)
             cur.execute('''INSERT INTO category(title) SELECT '%s'
                         WHERE NOT EXISTS (
                             SELECT id FROM category WHERE title = '%s'
@@ -211,7 +210,6 @@ def prepare_database(cur):
             action = 0 if 'Resgates' in category_data[0] else 1
             category_id = cur.fetchone()[0]
             for row in range(12, df.shape[0]):
-                print(df.iloc[row, 1])
                 cur.execute(f"INSERT INTO monetary_value VALUES ({category_id}, '{df.iloc[row, 1]}', {action}, {df.iloc[row, col]})")
                 conn.commit()
 
