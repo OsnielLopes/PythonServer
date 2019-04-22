@@ -19,7 +19,7 @@ Após clonar este repositório:
     Instalar o PostgreSQL: https://www.postgresql.org/download/windows/
     Abrir o PSQL (um terminal deve aparecer) e usar o seguinte comando:
     CREATE DATABASE historico;
-    Abrir o prompt de comando e executar:
+    Abrir o prompt de comando e executar (talvez seja necessário entrar na pasta Scripts da instalação do Python):
     pip3 install psycopg2
     pip3 install pandas
     pip3 install xlrd
