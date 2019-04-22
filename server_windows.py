@@ -15,9 +15,6 @@ class S(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        # logging.info("GET request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
-        # self._set_response()
-        # self.wfile.write("oi amorzinho lindo request for {}".format(self.path).encode('utf-8'))
         path_splited = self.path[1:].split('/')
         if not path_splited[0] == 'titulo_tesouro':
             self.send_response(400)
@@ -186,7 +183,7 @@ def prepare_database(cur):
     cur.execute(select_table, ('category',))
     if not cur.fetchone()[0]:
         cur.execute("CREATE TABLE category (id serial PRIMARY KEY, title VARCHAR (50) UNIQUE NOT NULL)")
-        for data in df.iloc[4, 2:]:
+        for data in df.iloc[5, 2:]:
             name = data.split('Tesouro Direto - ')[-1]
             cur.execute('''INSERT INTO category(title) SELECT '%s'
                         WHERE NOT EXISTS (
@@ -207,12 +204,12 @@ def prepare_database(cur):
                                 ON DELETE CASCADE
                         )''')
         for col in range(2, df.shape[1]):
-            category_data = df.iloc[4, col].split('Tesouro Direto - ')
+            category_data = df.iloc[5, col].split('Tesouro Direto - ')
             category_name = category_data[-1]
             cur.execute(f"SELECT id FROM category WHERE title = '{category_name}'")
             action = 0 if 'Resgates' in category_data[0] else 1
             category_id = cur.fetchone()[0]
-            for row in range(9, df.shape[0]):
+            for row in range(12, df.shape[0]):
                 cur.execute(f"INSERT INTO monetary_value VALUES ({category_id}, '{df.iloc[row, 1]}', {action}, {df.iloc[row, col]})")
                 conn.commit()
 
@@ -224,7 +221,7 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.INFO)
     
     try:
-        conn = psycopg2.connect(host='localhost', database='historico', user='osniellopesteixeira', password='1928370a')
+        conn = psycopg2.connect(host='localhost', database='historico', user='postgres', password='1928370a')
         logging.info("Connected to database.")
     except Exception as err:
         logging.critical(err)
