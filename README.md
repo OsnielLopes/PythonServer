@@ -26,7 +26,7 @@ Após clonar este repositório:
     
 ### Configurar conexão com o banco e executar
     Abrir o arquivo server_mac.py ou server_windows.py e alterar na linha 224 os dados de conexão com o banco, conforme tenha sido configurado.
-    Rodar o arquivo server.py ou server_mac.py.
+    Rodar o arquivo server_mac.py ou server_windows.py.
 
 
 
