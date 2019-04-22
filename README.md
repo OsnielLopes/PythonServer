@@ -31,5 +31,5 @@ Após clonar este repositório:
 
 
 ## Modelo Entidade-Relacionamento do banco de dados
-![Modelo Entidade Relacionamento usado para criação do banco](https://github.com/OsnielLopes/PythonServer/blob/master/er-diagram.png)
+![Modelo Entidade Relacionamento usado para criação do banco](https://github.com/OsnielLopes/PythonServer/blob/master/diagram.png)
 
