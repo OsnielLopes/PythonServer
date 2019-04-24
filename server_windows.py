@@ -9,9 +9,9 @@ import psycopg2
 
 class S(BaseHTTPRequestHandler):
 
-    def _set_response(self, num=200):
+    def _set_response(self, num=200, content_type='text/html'):
         self.send_response(num)
-        self.send_header('Content-type', 'text/html')
+        self.send_header('Content-type', content_type)
         self.end_headers()
 
     def do_GET(self):
@@ -23,11 +23,17 @@ class S(BaseHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
             params = json.loads(post_data)
-            id = int(path_splited[1])
-            if id:
-                params['id'] = id
-                self.get_historic(params)
-
+            try:
+                id = int(path_splited[1])
+                if id:
+                    params['id'] = id
+                    self.get_historic(params)
+            except ValueError:
+                if path_splited[1] == 'venda' or path_splited[1] == 'resgaste':
+                    params['id'] = path_splited[-1]
+                    self.get_historic(params, action=path_splited[1])
+                elif path_splited[1] == 'comparar':
+                    self.get_diff(params)
 
     def do_POST(self):
         content_length = int(self.headers['Content-Length']) 
@@ -38,6 +44,7 @@ class S(BaseHTTPRequestHandler):
             params = json.loads(post_data)
             cur = get_cursor()
             cur.execute(f"SELECT id FROM category WHERE title = '{params['categoria_titulo']}'")
+            response = None
             try:
                 category_id = cur.fetchone()[0]
             except TypeError:
@@ -46,24 +53,63 @@ class S(BaseHTTPRequestHandler):
                 response = f"Created new category {params['categoria_titulo']}, id = {category_id}. "
             date = datetime.strptime(str(params['mes'])+str(params['ano']), f"%m%Y")
             action = 0 if 'resgate' in params['acao'] else 1
-            self._set_response()
+            self._set_response(content_type='application/json')
             try:
                 cur.execute(f"INSERT INTO monetary_value VALUES ({category_id}, '{date}', {action}, {params['valor']}) ")
                 commit()
                 dict_response = {'success': True, 'message': (response if response else "")+"Data inserted successfully."}
             except psycopg2.errors.UniqueViolation:
                 dict_response = {'success': False, 'message': "This monetary value already exists."}
+                rollback()
             self.wfile.write(json.dumps(dict_response).encode('utf-8'))
 
     def do_DELETE(self):
-        logging.info("DELETE request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
+        content_length = int(self.headers['Content-Length']) 
+        post_data = self.rfile.read(content_length)
+        logging.info("DELETE request,\nPath: %s\nHeaders:\n%s\n\nBody:\n%s\n",
+                str(self.path), str(self.headers), post_data.decode('utf-8'))
         if self.request_is_valid():
-            self.wfile.write(self.path)
+            self._set_response()
+            path_splited = self.path[1:].split('/')
+            id = int(path_splited[1])
+            if id:
+                params = json.loads(post_data)
+                month = params['mes']
+                year = params['ano']
+                date = str(month)+str(year)
+                date = datetime.strptime(date, f"%m%Y")
+                action = 1 if params['acao'] == 'venda' else 0
+                update = f"DELETE FROM monetary_value WHERE category = {id} AND date = '{date}' AND action = {action}"
+                cur = get_cursor()
+                cur.execute(update)
+                dict_response = {'success': True, 'message': "Data deleted successfully."}
+                self._set_response(content_type='application/json')
+                self.wfile.write(json.dumps(dict_response).encode('utf-8'))
+                commit()
 
     def do_PUT(self):
-        logging.info("PUT request,\nPath: %s\nHeaders:\n%s\n", str(self.path), str(self.headers))
+        content_length = int(self.headers['Content-Length']) 
+        post_data = self.rfile.read(content_length)
+        logging.info("PUT request,\nPath: %s\nHeaders:\n%s\n\nBody:\n%s\n",
+                str(self.path), str(self.headers), post_data.decode('utf-8'))
         if self.request_is_valid():
-            self.wfile.write(self.path)
+            path_splited = self.path[1:].split('/')
+            id = int(path_splited[1])
+            if id:
+                params = json.loads(post_data)
+                month = params['mes']
+                year = params['ano']
+                date = str(month)+str(year)
+                date = datetime.strptime(date, f"%m%Y")
+                value = params['valor']
+                action = 1 if params['acao'] == 'venda' else 0
+                update = f"UPDATE monetary_value SET value = {value} WHERE category = {id} AND date = '{date}' AND action = {action}"
+                cur = get_cursor()
+                cur.execute(update)
+                dict_response = {'success': True, 'message': "Data updated successfully."}
+                self._set_response(content_type='application/json')
+                self.wfile.write(json.dumps(dict_response).encode('utf-8'))
+                commit()
 
     def request_is_valid(self):
         if 'titulo_tesouro' in self.path:
@@ -72,11 +118,11 @@ class S(BaseHTTPRequestHandler):
         self.wfile.write("Path not valid.".encode('utf-8'))
         return False
 
-    def get_historic(self, params):
+    def get_historic(self, params, action=None):
 
         start_date = params.get('data_inicio', None)
         end_date = params.get('data_fim', None)
-        group_by = params.get('group_by', None)
+        group_by_year = params.get('group_by_year', None)
 
         start_date = datetime.strptime(start_date, f"%m/%Y") if start_date else None
         end_date = datetime.strptime(end_date, f"%m/%Y") if end_date else None
@@ -95,10 +141,11 @@ class S(BaseHTTPRequestHandler):
 
             date_greater_then = f"AND date >= '{start_date}'" if start_date else ""
             date_lower_then = f"AND date <= '{end_date}'" if end_date else ""
+            action = f"AND action = {1 if action == 'venda' else 0}" if action else ""
 
-            if group_by:
+            if group_by_year:
                 select = f'''SELECT EXTRACT(YEAR FROM date) as year, action, SUM(value) FROM monetary_value
-                        WHERE category = {params['id']} {date_greater_then} {date_lower_then}
+                        WHERE category = {params['id']} {date_greater_then} {date_lower_then} {action}
                         GROUP BY year, action
                         ORDER BY year'''
                 cur.execute(select)
@@ -122,7 +169,7 @@ class S(BaseHTTPRequestHandler):
                     historico_list.append(h)
             else:
                 select = f'''SELECT date, action, value FROM monetary_value
-                        WHERE category = {params['id']} {date_greater_then} {date_lower_then}
+                        WHERE category = {params['id']} {date_greater_then} {date_lower_then} {action}
                         ORDER BY date'''
                 cur.execute(select)
                 historico_list = []
@@ -145,9 +192,23 @@ class S(BaseHTTPRequestHandler):
                             h['valor_resgate'] = row[2]
                         historico_list.append(h)
             response['historico'] = historico_list
-            self._set_response()
+            self._set_response(content_type='application/json')
             self.wfile.write(json.dumps(response).encode('utf-8'))
 
+    def get_diff(self, params):
+        # TODO
+        start_date = params.get('data_inicio', None)
+        end_date = params.get('data_fim', None)
+        group_by_year = params.get('group_by_year', None)
+
+        start_date = datetime.strptime(start_date, f"%m/%Y") if start_date else None
+        end_date = datetime.strptime(end_date, f"%m/%Y") if end_date else None
+
+        response = {'id': params['id'], 'categoria_titulo': title}
+
+        date_greater_then = f"AND date >= '{start_date}'" if start_date else ""
+        date_lower_then = f"AND date <= '{end_date}'" if end_date else ""
+        action = f"AND action = {1 if action == 'venda' else 0}" if action else ""
 
 
 def run(server_class=HTTPServer, handler_class=S, port=8080):
@@ -160,6 +221,7 @@ def run(server_class=HTTPServer, handler_class=S, port=8080):
         pass
     httpd.server_close()
     logging.info('Stopping server...\n')
+    conn.commit()
     conn.close()
 
 def get_cursor():
@@ -167,6 +229,9 @@ def get_cursor():
 
 def commit():
     conn.commit()
+
+def rollback():
+    conn.rollback()
 
 def prepare_database(cur):
     '''
@@ -213,6 +278,7 @@ def prepare_database(cur):
                 cur.execute(f"INSERT INTO monetary_value VALUES ({category_id}, '{df.iloc[row, 1]}', {action}, {df.iloc[row, col]})")
                 conn.commit()
 
+
 if __name__ == '__main__':
 
     if len(argv) == 2:
@@ -221,7 +287,7 @@ if __name__ == '__main__':
         logging.basicConfig(level=logging.INFO)
     
     try:
-        conn = psycopg2.connect(host='localhost', database='historico', user='postgres', password='1928370a')
+        conn = psycopg2.connect(host='localhost', database='historico', user='osniellopesteixeira', password='1928370a')
         logging.info("Connected to database.")
     except Exception as err:
         logging.critical(err)
