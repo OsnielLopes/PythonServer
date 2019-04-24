@@ -107,9 +107,9 @@ class S(BaseHTTPRequestHandler):
                     year = int(row[0])
                     if historico.get(year, None):
                         if row[1] == 1:
-                            historico[year]['valor_venda'] = row[2]
+                            historico[year]['valor_venda'] = historico[year].get('valor_venda', 0) + row[2]
                         else:
-                            historico[year]['valor_resgate'] = row[2]
+                            historico[year]['valor_resgate'] = historico[year].get('valor_resgate', 0) + row[2]
                     else:
                         if row[1] == 1:
                             historico[year] = {'valor_venda': row[2]}
